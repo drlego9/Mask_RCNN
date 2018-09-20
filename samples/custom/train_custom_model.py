@@ -15,14 +15,18 @@ import numpy as np
 import tensorflow as tf
 
 # Root directory of the project (The Mask-RCNN directory)
-os.chdir('D:/projects/PROJECT_hyundai/2018/Mask_RCNN/samples/custom/')
-ROOT_DIR = os.path.abspath('../../')
+ROOT_DIR = os.path.abspath('./')      # Using interactive console
+ROOT_DIR = os.path.abspath('../../')  # Running 'train_custom_model.py'
+assert os.path.isdir(ROOT_DIR)
+print('>> ROOT_DIR: {}'.format(ROOT_DIR))
 
 # Import Mask RCNN
-sys.path.append(ROOT_DIR) # To find local version of the library
+sys.path.append(ROOT_DIR)  # To find local version of the library
+
 from mrcnn import model as modellib
 from mrcnn import utils
-from custom import CustomConfig, CustomDataset
+
+from samples.custom.custom import CustomConfig, CustomDataset
 
 # Path to trained weights file
 COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
@@ -30,7 +34,10 @@ if not os.path.exists(COCO_MODEL_PATH):
     utils.download_trained_weights(COCO_MODEL_PATH)
 
 # Directory to dataset (right above train/val)
-DATASET_DIR = 'D:/projects/PROJECT_hyundai/2018/datasets/20180823/'
+DATASET_DIR = os.path.abspath('../dataset/')        # Using interactive console
+DATASET_DIR = os.path.abspath('../../../dataset/')  # Running 'train_custom_model.py'
+assert os.path.isdir(DATASET_DIR)
+print('>> DATASET_DIR: {}'.format(DATASET_DIR))
 
 # Directory to save logs and model checkpoints, if not provided
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
@@ -51,25 +58,25 @@ class CustomTrainConfig(CustomConfig):
                          # bump, manhole, pothole, steel
     
     # Use a small epoch since the data is simple
-    STEPS_PER_EPOCH = 50
+    STEPS_PER_EPOCH = 2542 // IMAGES_PER_GPU
 
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.9
     
     # MISC
     IMAGE_RESIZE_MODE = "square"
-    IMAGE_MIN_DIM = 256
-    IMAGE_MAX_DIM = 256
+    IMAGE_MIN_DIM = 1024
+    IMAGE_MAX_DIM = 1024
     
     # Use smaller anchors because our image and objects are small
-    RPN_ANCHOR_SCALES = (8, 16, 32, 64, 128)
+    RPN_ANCHOR_SCALES = (32, 64, 128, 256, 512)
     
     # Reduce training ROIs per image because the images are small and have
     # few objects. Aim to allow ROI sampling to pick 33% positive ROIs.
     TRAIN_ROIS_PER_IMAGE = 32
     
     # use small validation steps since the epoch is small
-    VALIDATION_STEPS = 5
+    VALIDATION_STEPS = 10
     
     USE_MINI_MASK = False
     MINI_MASK_SHAPE = (28, 28)
@@ -119,7 +126,7 @@ if __name__ == '__main__':
     # Train, phase 1 (layers='heads')
     model.train(dataset_train, dataset_val,
                 learning_rate=0.001,
-                epochs=50,
+                epochs=100,
                 layers='heads')
     
     # Train, phase 2 (layers='all')
@@ -133,4 +140,3 @@ if __name__ == '__main__':
     # Save trained model
     model_path = os.path.join(MODEL_DIR, 'mask_rcnn_custom.h5')
     model.keras_model.save_weights(model_path)
-    

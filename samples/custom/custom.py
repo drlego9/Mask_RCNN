@@ -9,8 +9,8 @@ import operator
 import numpy as np
 
 # Root directory of the project (The Mask-RCNN directory)
-os.chdir('D:/projects/PROJECT_hyundai/2018/Mask_RCNN/samples/custom/')
-ROOT_DIR = os.path.abspath('../../')
+ROOT_DIR = os.path.abspath('./')      # Using interactive console
+ROOT_DIR = os.path.abspath('../../')  # Running from project-level directory
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR) # To find local version of the library
@@ -25,7 +25,7 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 
 # Directory to dataset (right above train/val)
-DATASET_DIR = 'D:/projects/PROJECT_hyundai/2018/datasets/20180823/'
+DATASET_DIR = os.path.abspath('../dataset/')
 
 
 class CustomConfig(Config):
@@ -52,6 +52,7 @@ class CustomDataset(utils.Dataset):
     """Add class docstring."""
     def __init__(self, class_map=None):
         super(CustomDataset, self).__init__(class_map=class_map)
+        # Mind the order
         self.custom_class_names = ['BG', 'pothole', 'manhole', 'steel',
                                    'bump', 'car', 'my_road', 'other_road']
         
@@ -71,57 +72,52 @@ class CustomDataset(utils.Dataset):
         
         assert subset in ['train', 'val']
         dataset_dir = os.path.join(dataset_dir, subset)
-        
-        # subirs = ['pothole', 'manhole', 'bump', 'steel']
-        subdirs = os.listdir(dataset_dir)
-        subdirs = [os.path.join(dataset_dir, sd) for sd in subdirs]
-        
-        for subdir in subdirs:
+
+        image_dirs = os.listdir(dataset_dir)
+        image_dirs = [os.path.join(dataset_dir, imd) for imd in image_dirs]
+        image_dirs = [imd.replace('\\', '/') for imd in image_dirs]
+        assert all([os.path.isdir(imd) for imd in image_dirs])
             
-            image_dirs = os.listdir(subdir)
-            image_dirs = [os.path.join(subdir, imd) for imd in image_dirs]
-            assert all([os.path.isdir(imd) for imd in image_dirs])
-            
-            for image_dir in image_dirs:
+        for image_dir in image_dirs:
                 
-                # Load image
-                image_path = os.path.join(image_dir, 'img.png')
-                image_path = image_path.replace('\\', '/')  # Replace backslashes
-                image = skimage.io.imread(image_path)
-                height, width = image.shape[:2]  # image.shape == (1080, 1920, 3)
+            # Load image
+            image_path = os.path.join(image_dir, 'img.png')
+            image_path = image_path.replace('\\', '/')  # Replace backslashes
+            image = skimage.io.imread(image_path)
+            height, width = image.shape[:2]  # image.shape == (1080, 1920, 3)
                 
-                # Load polygons
-                polygon_path = os.path.join(image_dir, 'labelme_polygons.json')
-                with open(polygon_path, 'r') as fp:
-                    labelme_polygons = json.load(fp)
-                    assert isinstance(labelme_polygons, dict)
+            # Load polygons
+            polygon_path = os.path.join(image_dir, 'labelme_polygons.json')
+            with open(polygon_path, 'r') as fp:
+                labelme_polygons = json.load(fp)
+                assert isinstance(labelme_polygons, dict)
                     
-                # Make polygons (1 polygons for single image)
-                polygons = []
-                for p in labelme_polygons['shapes']:
+            # Make polygons (1 polygons for single image)
+            polygons = []
+            for p in labelme_polygons['shapes']:
                     
-                    # Check if the label is of interest
-                    if p['label'] not in self.custom_class_names:
-                        continue
+                # Check if the label is of interest
+                if p['label'] not in self.custom_class_names:
+                    continue
                     
-                    polygon = {}
+                polygon = {}
                     
-                    # Make value for the following keys: ['all_points_x', 'all_points_y']
-                    xy_pairs = p['points']
-                    polygon['all_points_x'] = [xy[0] for xy in xy_pairs]
-                    polygon['all_points_y'] = [xy[1] for xy in xy_pairs]
-                    polygon['name'] = p['label']
-                    
-                    polygons.append(polygon)
-                
-                self.add_image(
-                        source='custom',
-                        image_id=labelme_polygons['imagePath'], # TODO: check sanity
-                        path=image_path,
-                        width=width,
-                        height=height,
-                        polygons=polygons)
-                
+                # Make value for the following keys: ['all_points_x', 'all_points_y']
+                xy_pairs = p['points']
+                polygon['all_points_x'] = [xy[0] for xy in xy_pairs]
+                polygon['all_points_y'] = [xy[1] for xy in xy_pairs]
+                polygon['name'] = p['label']
+
+                polygons.append(polygon)
+
+            self.add_image(
+                    source='custom',
+                    image_id=labelme_polygons['imagePath'], # TODO: check sanity
+                    path=image_path,
+                    width=width,
+                    height=height,
+                    polygons=polygons)
+
     def load_mask(self, image_id):
         """Generate instance masks for shapes of the given image ID.
         Returns:
@@ -190,8 +186,7 @@ class CustomDataset(utils.Dataset):
         # Final assertion
         assert instance_masks.shape[-1] == class_ids.shape[0]
         return instance_masks.astype(np.int32), class_ids
-        
-            
+
     def image_reference(self, image_id):
         """Returns the absolute path to the image."""
         info = self.image_info[image_id]
@@ -216,13 +211,12 @@ if __name__ == '__main__':
     dataset_val.load_custom_data(DATASET_DIR, 'val')
     dataset_val.prepare()
     
-    print('>>> TRAIN DATA...')
+    print('>>> [TRAIN DATA]')
     print('>>> #. of images: {}'.format(len(dataset_train.image_ids)))
     for class_id, class_name in zip(dataset_train.class_ids, dataset_train.class_names):
         print('>>> Class {}: {}'.format(class_id, class_name))
     
-    print('>>> VALID DATA...')
+    print('>>> [VALID DATA]')
     print('>>> #. of images: {}'.format(len(dataset_val.image_ids)))
     for class_id, class_name in zip(dataset_val.class_ids, dataset_val.class_names):
         print('>>> Class {}: {}'.format(class_id, class_name))
-        
