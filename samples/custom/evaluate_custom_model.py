@@ -20,19 +20,34 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 # Root directory of the project (The Mask-RCNN directory)
-os.chdir('D:/projects/PROJECT_hyundai/2018/Mask_RCNN/samples/custom/')
-ROOT_DIR = os.path.abspath('../../')
+try:
+    # Using PyCharm's interactive console from project-level directory
+    ROOT_DIR = os.path.abspath('./')
+    assert os.path.isdir(os.path.join(ROOT_DIR, 'mrcnn'))
+except:
+    ROOT_DIR = os.path.abspath('../../')  # Running 'train_custom_model.py'
+    assert os.path.isdir(os.path.join(ROOT_DIR, 'mrcnn'))
 
-sys.path.append(ROOT_DIR)
+# Import Mask RCNN
+sys.path.append(ROOT_DIR)  # To find local version of the library
+
 from mrcnn import utils
 from mrcnn import visualize
 from mrcnn.visualize import display_images
 from mrcnn.model import log
 from mrcnn import model as modellib
-from custom import CustomConfig, CustomDataset
+from samples.custom.custom import CustomConfig, CustomDataset
 
 # Directory to dataset (right above train/val)
-DATASET_DIR = 'D:/projects/PROJECT_hyundai/2018/datasets/20180823/'
+try:
+    # Using PyCharm's interactive console from project-level directory
+    DATASET_DIR = os.path.abspath('../dataset/')
+    assert os.path.isdir(DATASET_DIR)
+except:
+    # Running 'evaluate_custom_model.py'
+    DATASET_DIR = os.path.abspath('../../../dataset/')
+    assert os.path.isdir(DATASET_DIR)
+
 
 # Directory to save logs and model checkpoints, if not provided
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
@@ -43,7 +58,8 @@ CUSTOM_MODEL_PATH = os.path.join(MODEL_DIR, 'mask_rcnn_custom_20180822T1829.h5')
 DEVICE = '/gpu:0'
 
 # Inspection mode
-TEST_MODE = 'inference'; assert TEST_MODE in ['training', 'inference']
+TEST_MODE = 'inference'
+assert TEST_MODE in ['training', 'inference']
 
 
 class CustomInferenceConfig(CustomConfig):
@@ -98,8 +114,7 @@ if __name__ == '__main__':
     model.load_weights(CUSTOM_MODEL_PATH, by_name=True)
     print('>>> Loaded trained weights successfully ({:.3f}s)...'.format(
             time.time() - start))
-    
-    
+
     now = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
     writedir = os.path.join(DATASET_DIR, '{}_val_{}'.format(
             now, inf_config.DETECTION_MIN_CONFIDENCE))
