@@ -2349,7 +2349,7 @@ class MaskRCNN():
             keras.callbacks.ModelCheckpoint(self.checkpoint_path,
                                             verbose=0, save_weights_only=True),
         ]
-	
+
         # Add custom callbacks to the list
         if custom_callbacks:
             callbacks += custom_callbacks
