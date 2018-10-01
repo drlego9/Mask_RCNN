@@ -71,7 +71,7 @@ class CustomDataset(utils.Dataset):
         subset: str, subset name to load, one of 'train' or 'val'.
         """
         
-        assert subset in ['train', 'val']
+        assert subset in ['train', 'val', 'test']
         dataset_dir = os.path.join(dataset_dir, subset)
 
         image_dirs = os.listdir(dataset_dir)
