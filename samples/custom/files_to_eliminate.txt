@@ -1,0 +1,8 @@
+F:/dataset/train/GH010135_0085_json
+F:/dataset/train/GH010135_0105_json
+F:/dataset/train/GH010135_0115_json
+F:/dataset/train/GH010135_0136_json
+F:/dataset/train/GH010135_0151_json
+F:/dataset/train/GH010135_0164_json
+F:/dataset/train/GH010135_0201_json
+F:/dataset/train/GH010135_0279_json
