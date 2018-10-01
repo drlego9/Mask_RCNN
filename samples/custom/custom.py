@@ -26,6 +26,7 @@ DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 
 # Directory to dataset (right above train/val)
 DATASET_DIR = os.path.abspath('../dataset/')
+DATASET_DIR = os.path.abspath('../../../dataset/')
 
 
 class CustomConfig(Config):
@@ -109,6 +110,11 @@ class CustomDataset(utils.Dataset):
                 polygon['name'] = p['label']
 
                 polygons.append(polygon)
+
+            if polygons.__len__() < 1:
+                with open('./files_to_eliminate.txt', 'a') as fp:
+                    fp.write(image_dir)
+                    fp.write('\n')
 
             self.add_image(
                     source='custom',

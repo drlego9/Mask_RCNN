@@ -52,7 +52,7 @@ class CustomTrainConfig(CustomConfig):
 
     # Number of images to fit to a single GPU
     GPU_COUNT = 1
-    IMAGES_PER_GPU = 2
+    IMAGES_PER_GPU = 8
 
     NUM_CLASSES = 1 + 7  # background, my_road, other_road, car
                          # bump, manhole, pothole, steel
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # Train, phase 1 (layers='heads')
     model.train(dataset_train, dataset_val,
                 learning_rate=0.001,
-                epochs=100,
+                epochs=50,
                 layers='heads')
     
     # Train, phase 2 (layers='all')
