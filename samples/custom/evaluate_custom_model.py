@@ -11,8 +11,10 @@ warnings.filterwarnings('ignore')
 import os
 import sys
 import time
+import json
 import random
 import datetime
+import collections
 
 import numpy as np
 import tensorflow as tf
@@ -48,11 +50,11 @@ except:
     DATASET_DIR = os.path.abspath('../../../dataset/')
     assert os.path.isdir(DATASET_DIR)
 
-
 # Directory to save logs and model checkpoints, if not provided
-DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
+DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'logs')
 MODEL_DIR = DEFAULT_LOGS_DIR
-CUSTOM_MODEL_PATH = os.path.join(MODEL_DIR, 'mask_rcnn_custom_20180822T1829.h5')
+CUSTOM_MODEL_PATH = os.path.join(MODEL_DIR, 'mask_rcnn_custom_20180930T1453.h5')
+assert os.path.exists(CUSTOM_MODEL_PATH)
 
 # Configure device
 DEVICE = '/gpu:0'
@@ -63,19 +65,19 @@ assert TEST_MODE in ['training', 'inference']
 
 
 class CustomInferenceConfig(CustomConfig):
-    """Add class docstring."""
+    '''Inference configuration class.'''
     
     # Run detection on one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
     # MISC
-    IMAGE_RESIZE_MODE = "square"
-    IMAGE_MIN_DIM = 256
-    IMAGE_MAX_DIM = 256
+    IMAGE_RESIZE_MODE = 'square'
+    IMAGE_MIN_DIM = 1024
+    IMAGE_MAX_DIM = 1024
     
-    # Skip detections with < 90% confidence
-    DETECTION_MIN_CONFIDENCE = 0.6
+    # Skip detections with under minimum confidence
+    DETECTION_MIN_CONFIDENCE = 0.8
 
 
 def get_ax(rows=1, cols=1, size=16):
@@ -90,9 +92,10 @@ if __name__ == '__main__':
     inf_config.display()
     
     # Load validation dataset
+    subset = 'test'
     dataset_val = CustomDataset()
     dataset_val.load_custom_data(dataset_dir=DATASET_DIR,
-                                 subset='val')
+                                 subset='test')
     
     # Prepare for inference
     dataset_val.prepare()
@@ -116,11 +119,14 @@ if __name__ == '__main__':
             time.time() - start))
 
     now = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
-    writedir = os.path.join(DATASET_DIR, '{}_val_{}'.format(
-            now, inf_config.DETECTION_MIN_CONFIDENCE))
+    writedir = os.path.join(MODEL_DIR, '{}_{}_{}'.format(
+            subset, now, inf_config.DETECTION_MIN_CONFIDENCE))
     os.makedirs(writedir, exist_ok=True)
-    
-    for image_id in dataset_val.image_ids:    
+
+
+    iou_dict = collections.defaultdict(list)
+    for image_id in dataset_val.image_ids:
+
         info = dataset_val.image_info[image_id]
         print('>>> Image ID: {} | SOURCE.ID: {}.{}'.format(
                 image_id, info['source'], info['id']))
@@ -137,7 +143,29 @@ if __name__ == '__main__':
         # Run object detection
         results = model.detect([image], verbose=1)
         result = results[0]
-    
+
+        gt_match, pred_match, overlaps = utils.compute_matches(gt_bbox, gt_class_id, gt_mask,
+                                                               result['rois'], result['class_ids'],
+                                                               result['scores'], result['masks'],
+                                                               iou_threshold=0.5, score_threshold=0.0)
+
+        iou_values = []
+        for i, j in enumerate(pred_match):
+            if j > -1.:
+                j = int(j)
+                iou = overlaps[i, j]
+                iou_values.append(iou)
+                class_id = gt_class_id[j]
+                iou_dict[class_id].append(iou)
+            else:
+                continue
+
+        if len(iou_values) < 1:
+            miou = 0.
+        else:
+            miou = np.mean(iou_values)
+
+
         # Display results
         fig, ax = get_ax(1)
         visualize.display_instances(image=image,
@@ -147,8 +175,8 @@ if __name__ == '__main__':
                                     class_names=dataset_val.class_names,
                                     scores=result['scores'],
                                     ax=ax,
-                                    title='Predictions (ID:{})\n{}'.format(
-                                            image_id, img_ref)
+                                    title='(mIOU:{:.3f})Predictions (ID:{})\n{}'.format(
+                                            miou, image_id, img_ref)
                                     )
         log("gt_class_id", gt_class_id)
         log("gt_bbox", gt_bbox)
@@ -156,7 +184,11 @@ if __name__ == '__main__':
         
         # Save to file
         writefile = os.path.join(writedir,
-                                 info['id'].split('.')[0] + '_{}.png'.format(
-                                         inf_config.DETECTION_MIN_CONFIDENCE))
+                                 info['id'].split('.')[0] + '_{:.3f}.png'.format(
+                                         miou))
         fig.savefig(fname=writefile)
         plt.close(fig)
+
+    # Print iou dictionary to json file
+    for class_id, iou_list in iou_dict.items():
+        print('>>> {}: {:.3f}'.format(class_id, np.mean(iou_list)))
